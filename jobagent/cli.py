@@ -15,7 +15,7 @@ from jobagent.config import Settings, load_settings
 from jobagent.export import export_sheets
 from jobagent.extract import extract_from_message
 from jobagent.matcher import score_text
-from jobagent.telegram_client import connected_client
+from jobagent.telegram_client import connected_client, qr_login, reset_session
 
 
 def _posted_at(message) -> str | None:
@@ -39,11 +39,21 @@ def _channel_key(entity) -> str | None:
     return username.lower() if username else None
 
 
-async def cmd_login(settings: Settings) -> None:
-    async with connected_client(settings) as client:
-        me = await client.get_me()
-        name = " ".join(part for part in [me.first_name, me.last_name] if part)
-        print(f"Logged in as {name} (id {me.id}). Session saved under data/.")
+async def cmd_login(settings: Settings, *, use_qr: bool = False) -> None:
+    if use_qr:
+        from jobagent.telegram_client import build_client
+
+        client = build_client(settings)
+        try:
+            await qr_login(client)
+            me = await client.get_me()
+        finally:
+            await client.disconnect()
+    else:
+        async with connected_client(settings) as client:
+            me = await client.get_me()
+    name = " ".join(part for part in [me.first_name, me.last_name] if part)
+    print(f"Logged in as {name} (id {me.id}). Session saved under data/.")
 
 
 async def cmd_channels(settings: Settings) -> None:
@@ -280,7 +290,17 @@ def build_parser() -> argparse.ArgumentParser:
         description="Scan joined Telegram job channels from your personal account.",
     )
     sub = parser.add_subparsers(dest="command", required=True)
-    sub.add_parser("login", help="Log in once and save a local session file")
+    login = sub.add_parser("login", help="Log in once and save a local session file")
+    login.add_argument(
+        "--qr",
+        action="store_true",
+        help="Scan a QR code in the Telegram app (no SMS / login code)",
+    )
+    login.add_argument(
+        "--reset",
+        action="store_true",
+        help="Delete the local session and start login from scratch",
+    )
     sub.add_parser("channels", help="List channels this account already joined")
     sub.add_parser("scan", help="Fetch new posts from config.yaml channels")
     sub.add_parser("review", help="Apply / skip matches in the terminal")
@@ -299,7 +319,9 @@ def main(argv: list[str] | None = None) -> None:
         return
     settings = load_settings()
     if args.command == "login":
-        asyncio.run(cmd_login(settings))
+        if args.reset:
+            reset_session()
+        asyncio.run(cmd_login(settings, use_qr=args.qr))
         return
     if args.command == "channels":
         asyncio.run(cmd_channels(settings))

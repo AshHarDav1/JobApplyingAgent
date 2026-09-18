@@ -30,11 +30,17 @@ python3 -m venv .venv
 source .venv/bin/activate
 pip install -r requirements.txt
 cp .env.example .env   # then edit .env
-python -m jobagent login
+python -m jobagent login --reset --qr
 ```
 
-`login` asks for the phone and the Telegram code **in that terminal**. After that,
-`data/user.session` is your login cookie. Keep it private, like a password.
+That prints a QR in the terminal. On your phone: Telegram → Settings → Devices
+→ Link Desktop Device, then scan it. Keep the terminal open until it says
+logged in.
+
+If you use `python -m jobagent login` without `--qr`, Telegram sends a code
+**inside the Telegram app** (official chat named Telegram), not by SMS. Old
+codes die quickly; rerun the command to request a new one. `--reset` deletes a
+broken `data/user.session` from a failed attempt.
 
 Put your CV at `data/cv.pdf`.
 
