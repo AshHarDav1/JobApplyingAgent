@@ -7,6 +7,7 @@ from typing import AsyncIterator
 
 from telethon import TelegramClient
 from telethon.errors import SessionPasswordNeededError
+from telethon.tl.types import User
 
 from jobagent.config import Settings
 from jobagent.paths import DATA_DIR, SESSION_PATH
@@ -91,3 +92,16 @@ async def connected_client(settings: Settings) -> AsyncIterator[TelegramClient]:
         yield client
     finally:
         await client.disconnect()
+
+
+async def send_cv(settings: Settings, username: str, caption: str) -> None:
+    """Send the local CV PDF to a Telegram user. Refuses channels/groups."""
+    if not settings.cv_path.exists():
+        raise FileNotFoundError(f"CV not found at {settings.cv_path}")
+    async with connected_client(settings) as client:
+        entity = await client.get_entity(username)
+        if not isinstance(entity, User):
+            raise ValueError(
+                f"@{username} is a channel or group, not a person. Not sending."
+            )
+        await client.send_file(entity, str(settings.cv_path), caption=caption)

@@ -42,7 +42,7 @@ If you use `python -m jobagent login` without `--qr`, Telegram sends a code
 codes die quickly; rerun the command to request a new one. `--reset` deletes a
 broken `data/user.session` from a failed attempt.
 
-Put your CV at `data/cv.pdf`.
+Put your CV at `data/AshotHarutyunyanCV.pdf`.
 
 ## 3. Daily use
 

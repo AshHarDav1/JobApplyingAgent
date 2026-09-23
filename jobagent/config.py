@@ -56,7 +56,7 @@ def load_settings() -> Settings:
     with CONFIG_PATH.open(encoding="utf-8") as handle:
         raw = yaml.safe_load(handle) or {}
 
-    cv_path = Path(raw.get("cv_path") or "data/cv.pdf")
+    cv_path = Path(raw.get("cv_path") or "data/AshotHarutyunyanCV.pdf")
     if not cv_path.is_absolute():
         cv_path = ROOT / cv_path
 

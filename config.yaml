@@ -1,4 +1,4 @@
-cv_path: data/cv.pdf
+cv_path: data/AshotHarutyunyanCV.pdf
 
 keywords:
   - python
@@ -8,12 +8,25 @@ keywords:
 location_keywords:
   - remote
 
-# Fill with usernames from: python -m jobagent channels
-channels: []
+# Pulled from Telegram folder RemoteJobs (channels only; two people skipped)
+channels:
+  - remote_python_jobs
+  - python_vakansii1
+  - vgrecruitingit
+  - Remoteit
+  - ru_pythonjobs
+  - your_pet_project
+  - jobforjunior
+  - python_easy_ru
+  - remotejobss
+  - Armtechblog
+  - pythonrabota
+  - relocatesme
+  - LearnPython3
 
 min_score: 1
 scan_limit_per_channel: 80
 send_delay_seconds: 8
 
 intro_message: |
-  Hello, I am interested in this position. Please find my CV attached.
+  Hi, I'm interested in the {position} role at {company}. Please find my CV attached.

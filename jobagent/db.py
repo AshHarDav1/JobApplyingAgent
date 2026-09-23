@@ -62,6 +62,20 @@ def init_db() -> None:
             )
             """
         )
+        existing = {row[1] for row in conn.execute("PRAGMA table_info(jobs)")}
+        extras = {
+            "company": "TEXT",
+            "position": "TEXT",
+            "salary": "TEXT",
+            "remote": "TEXT",
+            "location": "TEXT",
+            "apply_url": "TEXT",
+            "telegram_contact": "TEXT",
+            "apply_status": "TEXT",
+        }
+        for name, spec in extras.items():
+            if name not in existing:
+                conn.execute(f"ALTER TABLE jobs ADD COLUMN {name} {spec}")
 
 
 def dumps(value: Any) -> str:
@@ -92,6 +106,22 @@ def upsert_job(conn: sqlite3.Connection, payload: dict[str, Any]) -> bool:
         payload,
     )
     return cur.rowcount == 1
+
+
+def rescore_new_jobs(
+    conn: sqlite3.Connection,
+    keywords: list[str],
+    location_keywords: list[str],
+) -> None:
+    from jobagent.matcher import score_text
+
+    rows = conn.execute("SELECT id, text FROM jobs WHERE status = 'new'").fetchall()
+    for row in rows:
+        score, hits = score_text(row["text"] or "", keywords, location_keywords)
+        conn.execute(
+            "UPDATE jobs SET score = ?, matched_keywords = ? WHERE id = ?",
+            (score, dumps(hits), row["id"]),
+        )
 
 
 def list_inbox(conn: sqlite3.Connection, min_score: int = 1) -> list[sqlite3.Row]:
@@ -134,14 +164,82 @@ def counts(conn: sqlite3.Connection) -> dict[str, int]:
     return {row["status"]: row["n"] for row in rows}
 
 
+def record_application(
+    conn: sqlite3.Connection,
+    job_id: int,
+    *,
+    apply_method: str,
+    parsed: dict[str, str | None],
+    notes: str | None = None,
+    apply_status: str = "applied",
+) -> None:
+    applied_at = utc_now()
+    conn.execute(
+        """
+        UPDATE jobs SET
+            status = 'applied',
+            apply_status = ?,
+            apply_method = ?,
+            applied_at = COALESCE(applied_at, ?),
+            notes = COALESCE(?, notes),
+            company = ?,
+            position = ?,
+            salary = ?,
+            remote = ?,
+            location = ?,
+            apply_url = ?,
+            telegram_contact = ?
+        WHERE id = ?
+        """,
+        (
+            apply_status,
+            apply_method,
+            applied_at,
+            notes,
+            parsed.get("company"),
+            parsed.get("position"),
+            parsed.get("salary"),
+            parsed.get("remote"),
+            parsed.get("location"),
+            parsed.get("apply_url"),
+            parsed.get("telegram_contact"),
+            job_id,
+        ),
+    )
+
+
+def set_apply_status(conn: sqlite3.Connection, job_id: int, apply_status: str) -> None:
+    conn.execute(
+        "UPDATE jobs SET apply_status = ? WHERE id = ?",
+        (apply_status, job_id),
+    )
+
+
+def list_applications(conn: sqlite3.Connection) -> list[sqlite3.Row]:
+    return list(
+        conn.execute(
+            """
+            SELECT id, applied_at, apply_status, apply_method, company, position,
+                   salary, remote, location, telegram_contact, apply_url,
+                   channel_id, channel_username, message_id, channel_title, notes
+            FROM jobs
+            WHERE status = 'applied' OR apply_status IS NOT NULL
+            ORDER BY COALESCE(applied_at, created_at) DESC, id DESC
+            """
+        )
+    )
+
+
 def export_rows(conn: sqlite3.Connection) -> list[sqlite3.Row]:
     return list(
         conn.execute(
             """
-            SELECT applied_at, posted_at, status, apply_method, score,
-                   channel_title, channel_username, text, contacts, emails, urls, notes
+            SELECT applied_at, apply_status, apply_method, company, position,
+                   salary, remote, location, telegram_contact, apply_url,
+                   channel_id, channel_username, message_id, channel_title,
+                   notes, posted_at, score
             FROM jobs
-            WHERE status IN ('applied', 'pending_link', 'pending_email')
+            WHERE status = 'applied' OR apply_status IS NOT NULL
             ORDER BY COALESCE(applied_at, posted_at) DESC, id DESC
             """
         )

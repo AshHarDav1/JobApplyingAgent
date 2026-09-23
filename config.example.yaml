@@ -1,6 +1,6 @@
 # Copy to config.yaml and edit. Channel usernames have no @.
 
-cv_path: data/cv.pdf
+cv_path: data/AshotHarutyunyanCV.pdf
 
 keywords:
   - python
@@ -18,4 +18,4 @@ scan_limit_per_channel: 80
 send_delay_seconds: 8
 
 intro_message: |
-  Hello, I am interested in this position. Please find my CV attached.
+  Hi, I'm interested in the {position} role at {company}. Please find my CV attached.
